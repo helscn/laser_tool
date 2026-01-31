@@ -17,12 +17,12 @@
 20250104：镭射参数合并时，一个参数可以同时应用在合并后的多把刀上
 20250116：通过钻孔程序生成镭射机测数程序时，只会选择坐标点做为测数点，不会选择M25等指令中的坐标
           增加平均拉伸量的计算，单位为千分比，以和检孔机测数结果一致
-20250210：增加孔数超过100万孔但不超过1000万孔时，三菱机分割后的新文件识别处理（.G0#、.H0#文件）
-
+20250210：增加孔数超过100万孔但不超过1000万孔时，三菱机分割后的新文件识别处理（.G0#、.H0#文件，#最大到9）
+20250214：增加孔数超过100万孔但不超过1亿孔时，三菱机分割后的新文件识别处理（.G##、.H##文件，##最大到99）
 */
 window.resizeTo(650,600);
 </script>
-<title>镭射程序参数调用软件 V20250210</title>
+<title>镭射程序参数调用软件 V20250214</title>
 <hta:Application
 ID="CreateBackupMarkerPrg"
 applicationname="CreateBackupMarkerPrg"
@@ -93,6 +93,7 @@ var fso=new ActiveXObject("Scripting.FileSystemObject");
 var selectedCondFiles=[];
 var loadedCond=[];
 
+
 if (!Array.prototype.indexOf) {
     // 针对IE增加数组的 indexOf 函数
     Array.prototype.indexOf = function(obj, start) {
@@ -118,6 +119,17 @@ if(!String.prototype.trim) {
         return this.replace(reg, "");
     }
 }
+
+
+Number.prototype.toPaddedString = function(targetLength) {
+    // Number对象的扩展方法，用于将数字转换为指定长度的字符串，并在必要时在字符串前补零
+    var numStr = this.toString();
+    var zerosToAdd = targetLength - numStr.length;
+    if (zerosToAdd > 0) {
+        numStr = Array(zerosToAdd + 1).join('0') + numStr;
+    }
+    return numStr;
+};
 
 Date.prototype.Format = function (fmt) { // author: meizz
     // 格式化日期,示例：
@@ -371,14 +383,16 @@ function copyNormalPrg(){
 							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+exts[i],SaveFolder+"\\");
 						}
 					}
-                    for (var i=1;i<10;i++){
-						if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+".G0"+i)){
-							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+".G0"+i,SaveFolder+"\\");
+                    //孔数超过100万孔时复制分割文件
+                    for (var i=1;i<=99;i++){
+                        var index=i.toPaddedString(2);
+						if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+".G"+index)){
+							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+".G"+index,SaveFolder+"\\");
 						}else{
                             break;
                         }
-						if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+".H0"+i)){
-							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+".H0"+i,SaveFolder+"\\");
+						if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+".H"+index)){
+							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+".H"+index,SaveFolder+"\\");
 						}else{
                             break;
                         }
@@ -478,15 +492,16 @@ function createBakPrg(){
         //输出hgd程序
         outputHgdFile(SourceFilePath+".HGD",TargetFilePath+".HGD");
 
-        //复制分割的加工程序文件
-        for (var i=1;i<10;i++){
-            if (fso.FileExists(SourceFilePath+".G0"+i)){
-                fso.CopyFile(SourceFilePath+".G0"+i,TargetFilePath+".G0"+i);
+        //孔数超过100万孔时复制分割的加工程序文件
+        for (var i=1;i<=99;i++){
+            var index=i.toPaddedString(2);
+            if (fso.FileExists(SourceFilePath+".G"+index)){
+                fso.CopyFile(SourceFilePath+".G"+index,TargetFilePath+".G"+index);
             }else{
                 break;
             }
-            if (fso.FileExists(SourceFilePath+".H0"+i)){
-                fso.CopyFile(SourceFilePath+".H0"+i,TargetFilePath+".H0"+i);
+            if (fso.FileExists(SourceFilePath+".H"+index)){
+                fso.CopyFile(SourceFilePath+".H"+index,TargetFilePath+".H"+index);
             }else{
                 break;
             }
