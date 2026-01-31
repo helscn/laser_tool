@@ -15,10 +15,12 @@
 20241231：根据钻孔程序生成测数程序时，使用的刀径大小可以手动指定，默认为 1.002
 20250102：增加涨缩测数结果的保存功能
 20250104：镭射参数合并时，一个参数可以同时应用在合并后的多把刀上
+20250116：通过钻孔程序生成镭射机测数程序时，只会选择坐标点做为测数点，不会选择M25等指令中的坐标
+          增加平均拉伸量的计算，单位为千分比，以和检孔机测数结果一致
 */
 window.resizeTo(650,600);
 </script>
-<title>镭射程序参数调用软件 V20250104</title>
+<title>镭射程序参数调用软件 V20250116</title>
 <hta:Application
 ID="CreateBackupMarkerPrg"
 applicationname="CreateBackupMarkerPrg"
@@ -977,6 +979,7 @@ function loadDrlPrg(){
     var posArr=[];
     var toolReg1=/^(T\d+)C(\d*\.?\d+)\s*$/;
     var toolReg2=/^(T\d+)\s*$/;
+    var posReg=/^X\-?\d*Y\-?\d*\s*$/;
     var flag=false;
     File=fso.GetFile(filePath);
     FS=File.OpenAsTextStream(1);
@@ -1001,7 +1004,7 @@ function loadDrlPrg(){
         }
 
         // 判断是否为坐标指令
-        if(flag){
+        if(flag && posReg.test(line)){
             pos=parsePosXY(line);
             if(!!pos){
                 posArr.push(pos);
@@ -1138,6 +1141,8 @@ function calcDrlScale(){
         oFS.WriteLine("最大涨缩,"+formatScale(MaxX)+","+formatScale(MaxY)+"");
         oFS.WriteLine("最小涨缩,"+formatScale(MinX)+","+formatScale(MinY)+"");
         oFS.WriteLine("涨缩极差,"+formatScale(RangeX)+","+formatScale(RangeY)+"");
+        oFS.WriteLine("");
+        oFS.WriteLine("平均拉伸,"+((AvgX-1)*1000).toFixed(3)+"‰,"+((AvgY-1)*1000).toFixed(3)+"‰")
         oFS.WriteLine("");
         oFS.WriteLine("日期,时间,工单号,板编号,短边涨缩,长边涨缩");
         for(var i=0;i<result.length;i++){
