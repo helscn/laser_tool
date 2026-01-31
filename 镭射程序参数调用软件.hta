@@ -8,20 +8,21 @@
 20231031：增加复制正常镭射参数的功能，参数源路径为 \\172.29.19.200\ldr\DT2
 20240811：创建备用标靶时，可以正常识别单面镭射，备用标靶文件只有T01的程序，如果不存在T02则直接使用T01的备用标靶坐标数据
 20241105：如果判断参数名末尾是 - ，则自动增加非薄铜后缀，避免扫码枪不能正常扫码读取中文“非薄铜”导致参数不匹配
+20241113：复制程序和参数时（包括备用程序），会自动创建任务文件
 */
 
 while(true){
     //启动时调整窗口大小
     try{
         window.resizeTo(610,470);
-        //window.resizeTo(720,580);
+        // window.resizeTo(720,580);
         break;
     }catch(e){
         continue;
     }
 }
 </script>
-<title>镭射程序参数调用软件 V20241105</title>
+<title>镭射程序参数调用软件 V20241113</title>
 <hta:Application
 ID="CreateBackupMarkerPrg"
 applicationname="CreateBackupMarkerPrg"
@@ -358,8 +359,10 @@ function copyNormalPrg(){
     }else if(cond_flag){
         alert("未找到镭射程序，已复制正常镭射参数至目标路径。");
     }else{
-        alert("未找到镭射程序和参数，请确认文件名和路径是否正确！")
+        alert("未找到镭射程序和参数，请确认文件名和路径是否正确！");
+        return;
     }
+    createScheduleFile($("#SourcePrg").val(),$("#SourceCond").val());
 }
 
 function createBakPrg(){
@@ -417,6 +420,7 @@ function createBakPrg(){
         outputHgdFile(SourceFilePath+".hgd",TargetFilePath+".hgd");
         
         alert("备用标靶镭射加工程序已保存至以下路径：\n"+TargetFilePath);
+        createScheduleFile("BY-"+SourceFileName,$("#SourceCond").val());
     } catch(e){
         alert("输出备用标靶镭射加工程序时出现错误！");
         return;
@@ -620,6 +624,24 @@ function modifyFiles(){
             }
         }
     }
+}
+
+function createScheduleFile(SourcePrg, CondFolder){
+    var PrgSaveFolder=$("#SaveFolder").val();
+    var CondSaveFolder=$("#CondSaveFolder").val();
+    var TargetFile="C:\\pban\\schedule\\default.sdl";
+    var schedule=[SourcePrg,CondFolder,1,72,0,0,"0:00:00","",0]
+    
+    if (!fso.FolderExists("C:\\pban\\schedule")){return;}
+    oFS=fso.OpenTextFile(TargetFile,2,true);
+    
+    oFS.WriteLine(schedule.join(","))
+    for (var i=1;i<30;i++){
+        oFS.WriteLine(",,1,1,0,0,0:00:00,,0");
+    }
+    oFS.WriteLine(PrgSaveFolder);
+    oFS.WriteLine(CondSaveFolder);
+    oFS.Close()
 }
 
 function selectFolder(){
