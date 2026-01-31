@@ -19,10 +19,12 @@
           增加平均拉伸量的计算，单位为千分比，以和检孔机测数结果一致
 20250210：增加孔数超过100万孔但不超过1000万孔时，三菱机分割后的新文件识别处理（.G0#、.H0#文件，#最大到9）
 20250214：增加孔数超过100万孔但不超过1亿孔时，三菱机分割后的新文件识别处理（.G##、.H##文件，##最大到99）
+20250703：隐藏镭射程序、参数保存路径设置，通过按Alt点击导入路径的浏览按钮切换显示状态
+          修改镭射程序的复制逻辑，当镭射程序保存路径设置隐藏时，不会自动复制镭射程序当指定文件夹，创建任务文件时程序路径也会改为程序导入文件夹
 */
 window.resizeTo(650,600);
 </script>
-<title>镭射程序参数调用软件 V20250214</title>
+<title>镭射程序参数调用软件 V20250703</title>
 <hta:Application
 ID="CreateBackupMarkerPrg"
 applicationname="CreateBackupMarkerPrg"
@@ -365,45 +367,49 @@ function copyNormalPrg(){
     //检查程序导入路径是否存在
 	if (SourceFileName){
 		if (fso.FolderExists(ImporterFolder)){
-			//检查程序保存路径是否存在
-			if (fso.FolderExists(SaveFolder)){
-				//检查加工程序是否存在
-				prg_flag=true;
-				for (var i=0;i<exts.length;i++){
-					if (!fso.FileExists(ImporterFolder+"\\"+SourceFileName+exts[i])){
-						prg_flag=false;
-						break;
-					}
-				}
+			//检查加工程序是否存在
+            prg_flag=true;
+            for (var i=0;i<exts.length;i++){
+                if (!fso.FileExists(ImporterFolder+"\\"+SourceFileName+exts[i])){
+                    prg_flag=false;
+                    break;
+                }
+            }
+            if (!prg_flag){
+                alert("未找到指定程序，请确认程序名是否正确！");
+                return;
+            }
 
-				if (prg_flag){
-					//复制加工程序到目标文件夹
-					for (var i=0;i<exts.length;i++){
-						if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+exts[i])){
-							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+exts[i],SaveFolder+"\\");
-						}
-					}
+            //检查程序保存路径是否存在
+            if (!$("#SaveFolder").is(":hidden")){
+                if (fso.FolderExists(SaveFolder)){
+                    //复制加工程序到目标文件夹
+                    for (var i=0;i<exts.length;i++){
+                        if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+exts[i])){
+                            fso.CopyFile(ImporterFolder+"\\"+SourceFileName+exts[i],SaveFolder+"\\");
+                        }
+                    }
                     //孔数超过100万孔时复制分割文件
                     for (var i=1;i<=99;i++){
                         var index=i.toPaddedString(2);
-						if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+".G"+index)){
-							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+".G"+index,SaveFolder+"\\");
-						}else{
+                        if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+".G"+index)){
+                            fso.CopyFile(ImporterFolder+"\\"+SourceFileName+".G"+index,SaveFolder+"\\");
+                        }else{
                             break;
                         }
-						if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+".H"+index)){
-							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+".H"+index,SaveFolder+"\\");
-						}else{
+                        if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+".H"+index)){
+                            fso.CopyFile(ImporterFolder+"\\"+SourceFileName+".H"+index,SaveFolder+"\\");
+                        }else{
                             break;
                         }
                     }
-				}
-			}else{
-				alert("请确认程序保存路径是否正确！")
-			}
-		}else{
-			alert("请确认程序导入路径是否正确！")
-		}
+                }else{
+                    alert("请确认程序保存路径是否正确！")
+                }
+            }
+        }else{
+            alert("请确认程序导入路径是否正确！")
+        }
 	}
 
     //检查参数导入路径是否存在
@@ -425,12 +431,10 @@ function copyNormalPrg(){
 	}
 
     //根据文件保存结果显示提示信息
-    if (prg_flag && cond_flag){
-        alert("已复制正常程序和参数至目标路径。");
-    }else if(prg_flag){
-        alert("未找到镭射参数，已复制正常镭射程序至目标路径。");
+    if (prg_flag){
+        alert("已创建镭射机加工任务文件。");
     }else if(cond_flag){
-        alert("未找到镭射程序，已复制正常镭射参数至目标路径。");
+        alert("未找到镭射加工参数文件，已创建镭射机加工任务文件。");
     }else{
         alert("未找到镭射程序和参数，请确认文件名和路径是否正确！");
         return;
@@ -647,6 +651,9 @@ function checkPrgFile(srcFilePath){
 function createScheduleFile(SourcePrg, CondFile, Quantity,Comment){
     // 根据镭射程序文件和镭射参数创建任务文件
     var PrgSaveFolder=$("#SaveFolder").val();
+    if ($("#SaveFolder").is(":hidden")){
+        PrgSaveFolder=$("#ImporterFolder").val();
+    }
     var CondSaveFolder=$("#CondSaveFolder").val();
     var TargetFile="C:\\pban\\schedule\\default.sdl";
     var quantity=Quantity || 72;
@@ -689,6 +696,11 @@ function selectFolder(){
 }
 
 function selectImporterFolder(target){
+    if (window.event.altKey){
+        $(target).parent().next().toggle();
+        resizeWindow();
+        return;
+    }
     var objF=selectFolder();
     if (objF==null){
         alert("无效的路径文件夹！");
@@ -1288,7 +1300,7 @@ $(document).ready(function() {
     $("#SaveFolder").val("C:\\wp_chengxu");
     $("#ImporterFolder").val("\\\\172.29.19.200\\DrProd");
     $("#CondFolder").val("\\\\172.29.19.200\\ldr\\DT2");
-    $("#CondSaveFolder").val("C:\\wp_jiguangcanshu");
+    $("#CondSaveFolder").val("C:\\wp_chengxu");
     $("#DrlProdFolder").val("\\\\172.29.19.200\\DrProd");
     $("#DrlSampleFolder").val("\\\\172.29.19.200\\DrSample");
     $('#DrlStatSaveFolder').val("\\\\172.29.250.14\\DevData1\\激光钻机\\二厂激光钻机\\涨缩测数");
@@ -1494,7 +1506,7 @@ $(document).ready(function() {
 
 		  <div class="table_row">&nbsp;镭射参数：<input id="SourceCond" type="text" size="35" value="" title="扫码输入镭射加工参数名" />&nbsp;
 		  <span class="judgeFlag" id="SourceCondFlag"></span>&nbsp;
-          <span class="button" id="btnCopyPrg" onclick="javascript:copyNormalPrg();" title="从导入路径中下载镭射程序和参数到指定文件夹"><span><span><span>&nbsp;&nbsp;下载&nbsp;&nbsp;</span></span></span></span>
+          <span class="button" id="btnCopyPrg" onclick="javascript:copyNormalPrg();" title="根据扫码程序和参数创建加工任务文件"><span><span><span>&nbsp;&nbsp;创建&nbsp;&nbsp;</span></span></span></span>
           </div>
 
 		  <div class="table_row">&nbsp;标靶程序：<input id="MarkerPrg" type="text" size="35" value="" title="当正常标靶无法抓取时，在此处输入备用标靶文件名，可以生成备用标靶加工程序" />&nbsp;
@@ -1510,7 +1522,7 @@ $(document).ready(function() {
 			<span class="button"  onclick="javascript:selectImporterFolder('#ImporterFolder');"><span><span><span>&nbsp;浏览...&nbsp;</span></span></span></span>
 		  </div>
 
-		  <div class="table_row">&nbsp;程序保存：<input id="SaveFolder" type="text" size="35" value=""  title="选择镭射加工程序的保存路径"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		  <div class="table_row" style="display:none">&nbsp;程序保存：<input id="SaveFolder" type="text" size="35" value=""  title="选择镭射加工程序的保存路径"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 			<span class="button" onclick="javascript:selectSaveFolder('#SaveFolder');"><span><span><span>&nbsp;浏览...&nbsp;</span></span></span></span>
 		  </div>
 
@@ -1518,7 +1530,7 @@ $(document).ready(function() {
 			<span class="button" onclick="javascript:selectImporterFolder('#CondFolder');"><span><span><span>&nbsp;浏览...&nbsp;</span></span></span></span>
 		  </div>
 
-		  <div class="table_row">&nbsp;参数保存：<input id="CondSaveFolder" type="text" size="35" value="" title="选择镭射加工参数的保存路径"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		  <div class="table_row" style="display:none">&nbsp;参数保存：<input id="CondSaveFolder" type="text" size="35" value="" title="选择镭射加工参数的保存路径"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 			  <span class="button" onclick="javascript:selectSaveFolder('#CondSaveFolder');"><span><span><span>&nbsp;浏览...&nbsp;</span></span></span></span>
 		  </div>
 		</div>
