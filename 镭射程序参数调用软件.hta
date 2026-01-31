@@ -14,10 +14,11 @@
 20241230：增加根据钻孔程序生成镭射机涨缩测数程序功能，增加涨缩数据查询功能
 20241231：根据钻孔程序生成测数程序时，使用的刀径大小可以手动指定，默认为 1.002
 20250102：增加涨缩测数结果的保存功能
+20250104：镭射参数合并时，一个参数可以同时应用在合并后的多把刀上
 */
 window.resizeTo(650,600);
 </script>
-<title>镭射程序参数调用软件 V20250102</title>
+<title>镭射程序参数调用软件 V20250104</title>
 <hta:Application
 ID="CreateBackupMarkerPrg"
 applicationname="CreateBackupMarkerPrg"
@@ -133,6 +134,39 @@ Date.prototype.Format = function (fmt) { // author: meizz
         if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
             return fmt;
 }
+
+var JSON = JSON || {};
+
+// 实现 JSON.stringify 序列化功能
+JSON.stringify = JSON.stringify || function (obj) {
+    var t = typeof (obj);
+    if (t != "object" || obj === null) {
+        // 简单数据类型
+        if (t == "string") obj = '"'+obj+'"';
+        return String(obj);
+    } 
+    else {
+        // 数组或对象类型
+        var n, v, json = [], arr = (obj && obj.constructor == Array);
+        for (n in obj) {
+            v = obj[n]; t = typeof(v);
+
+            if (t == "string") v = '"'+v+'"';
+            if (t == "function") continue;
+            else if (t == "object" && v !== null) v = JSON.stringify(v);
+
+            json.push((arr ? "" : '"' + n + '":') + String(v));
+        }
+        return (arr ? "[" : "{") + String(json) + (arr ? "]" : "}");
+    }
+};
+
+// 实现 JSON.parse 反序列化功能
+JSON.parseJSON = JSON.parseJSON || function (str) {
+    if (str === "") str = '""';
+    eval("var p=" + str + ";");
+    return p;
+ };
 
 function resizeWindow(){
 	try{
@@ -781,7 +815,7 @@ function mergeCond() {
     target = $("#cnd_select_8");
     if (target.next().val()) {
         line = 8;
-        cond = loadedCond[target.val()];
+        cond = JSON.parseJSON(JSON.stringify(loadedCond[target.val()]));
         tool = target.next().val();
         toolData = cond["tools"][tool];
         for(var i=0;i<toolData.length;i++){
@@ -800,12 +834,10 @@ function mergeCond() {
     for (var i = 1; i <= 7; i++) {
         target = $("#cnd_select_" + i);
         if (target.next().val()) {
-            cond = loadedCond[target.val()];
+            cond = JSON.parseJSON(JSON.stringify(loadedCond[target.val()]));
             tool = target.next().val()
             toolData = cond["tools"][tool];
-            for (var j=0;j<toolData.length;j++){
-                toolData[j][8]=i;
-            }
+            toolData[0][8]=i;
             row = toolData[0];
             maxLine = i;
             mergedCond[i] = row;
@@ -816,10 +848,12 @@ function mergeCond() {
     for (var i = 1; i <= 7; i++) {
         target = $("#cnd_select_" + i);
         if (target.next().val()) {
-            cond = loadedCond[target.val()];
+            cond = JSON.parseJSON(JSON.stringify(loadedCond[target.val()]));
             tool = target.next().val()
             toolData = cond["tools"][tool];
+
             for (var j=1;j<toolData.length;j++){
+                toolData[j][8]=i;
                 maxLine = maxLine + 1;
                 if (maxLine >= 8 && maxLine<maxLineSkiving) {
                     maxLine = maxLineSkiving + 1;
@@ -841,6 +875,7 @@ function mergeCond() {
     }
     oFS.Close();
     alert("镭射参数已经合并并保存至以下路径：\n" + CondSavePath);
+    
 }
 </script>
 
@@ -1509,12 +1544,12 @@ $(document).ready(function() {
 		<legend><div class="fieldTitle" title="待转换为测数程序的钻孔工具文件名">钻孔程序转换</div></legend>
 		<div>
             <div class="table_row">&nbsp;钻孔程序名：<input id="SourceDrlPrg" type="text" size="32" style="text-align: center;" value="" title="输入待转换为镭射机测数程序的钻孔工具文件名" />&nbsp;
-                <span class="judgeFlag" id="SourceDrlPrgFlag"></span><span class="button" id="btnLoadDrlPrg" onclick="javascript:loadDrlPrg();" title="使用钻孔程序中最靠近板角的四个菲林孔做为对位点生成镭射机测数程序"><span><span><span>&nbsp;&nbsp;创建&nbsp;&nbsp;</span></span></span></span>
+                <span class="judgeFlag" id="SourceDrlPrgFlag"></span><span class="button" id="btnLoadDrlPrg" onclick="javascript:loadDrlPrg();" title="使用钻孔程序板四角位置的指定刀径孔做为对位点生成镭射机测数程序，镭射机对位点抓靶条件为31、32"><span><span><span>&nbsp;&nbsp;创建&nbsp;&nbsp;</span></span></span></span>
             </div>
             <div class="table_row">&nbsp;　工单批号：<input id="DrlLotNo" type="text" size="32" style="text-align: center;" value="" title="输入工单号最后5位用于按工单进行统计" />&nbsp;
                 　<span class="button" id="btnCalcScale" onclick="javascript:calcDrlScale();" title="查询最近一周时间当前钻孔程序量测的涨缩系数"><span><span><span>&nbsp;&nbsp;查询&nbsp;&nbsp;</span></span></span></span>
             </div>
-            <div class="table_row">&nbsp;　测数刀径：<input id="DrlBiteSize" type="text" size="5" style="text-align: center;" value="1.002" title="输入工单号最后5位用于按工单进行统计" />&nbsp;mm
+            <div class="table_row">&nbsp;　测数刀径：<input id="DrlBiteSize" type="text" size="5" style="text-align: center;" value="1.002" title="用于量测涨缩的钻孔程序刀径，菲林孔为1.002mm，如果没有菲林孔可以使用3.3mm的板边工具孔" />&nbsp;mm
             </div>
     </fieldset>
 	<fieldset>
@@ -1548,15 +1583,15 @@ $(document).ready(function() {
 	<fieldset>
 		<legend><div class="fieldTitle" title="选择钻孔程序查找的文件夹路径">文件夹路径设置</div></legend>
 		<div>
-            <div class="table_row">&nbsp;　生产盘路径：<input id="DrlProdFolder" type="text" size="32" value="" title="选择钻孔加工程序生产盘的查询路径" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <div class="table_row">&nbsp;　生产盘路径：<input id="DrlProdFolder" type="text" size="32" value="" title="选择钻孔加工程序生产盘的查询路径" />&nbsp;&nbsp;&nbsp;
                 <span class="button"  onclick="javascript:selectImporterFolder('#DrlProdFolder');"><span><span><span>&nbsp;浏览...&nbsp;</span></span></span></span>
             </div>
         
-            <div class="table_row">&nbsp;　样板盘路径：<input id="DrlSampleFolder" type="text" size="32" value="" title="选择钻孔加工程序样板盘的查询路径"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <div class="table_row">&nbsp;　样板盘路径：<input id="DrlSampleFolder" type="text" size="32" value="" title="选择钻孔加工程序样板盘的查询路径"/>&nbsp;&nbsp;&nbsp;
                 <span class="button" onclick="javascript:selectImporterFolder('#DrlSampleFolder');"><span><span><span>&nbsp;浏览...&nbsp;</span></span></span></span>
             </div>
 
-            <div class="table_row">&nbsp;测数保存路径：<input id="DrlStatSaveFolder" type="text" size="32" value="" title="选择测数结果的保存路径"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <div class="table_row">&nbsp;测数保存路径：<input id="DrlStatSaveFolder" type="text" size="32" value="" title="选择测数结果的保存路径"/>&nbsp;&nbsp;&nbsp;
                 <span class="button" onclick="javascript:selectImporterFolder('#DrlStatSaveFolder');"><span><span><span>&nbsp;浏览...&nbsp;</span></span></span></span>
             </div>
         </div>
