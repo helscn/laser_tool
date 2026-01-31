@@ -17,10 +17,12 @@
 20250104：镭射参数合并时，一个参数可以同时应用在合并后的多把刀上
 20250116：通过钻孔程序生成镭射机测数程序时，只会选择坐标点做为测数点，不会选择M25等指令中的坐标
           增加平均拉伸量的计算，单位为千分比，以和检孔机测数结果一致
+20250210：增加孔数超过100万孔但不超过1000万孔时，三菱机分割后的新文件识别处理（.G0#、.H0#文件）
+
 */
 window.resizeTo(650,600);
 </script>
-<title>镭射程序参数调用软件 V20250116</title>
+<title>镭射程序参数调用软件 V20250210</title>
 <hta:Application
 ID="CreateBackupMarkerPrg"
 applicationname="CreateBackupMarkerPrg"
@@ -341,7 +343,7 @@ function copyNormalPrg(){
     var ImporterFolder=$("#ImporterFolder").val();
     var SaveFolder=$("#SaveFolder").val();
     var SourceFileName=$("#SourcePrg").val();
-    var exts=new Array(".prg",".glv",".hgd");
+    var exts=new Array(".PRG",".GLV",".HGD");
     var prg_flag=false;
     var cond_flag=false;
 
@@ -369,6 +371,18 @@ function copyNormalPrg(){
 							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+exts[i],SaveFolder+"\\");
 						}
 					}
+                    for (var i=1;i<10;i++){
+						if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+".G0"+i)){
+							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+".G0"+i,SaveFolder+"\\");
+						}else{
+                            break;
+                        }
+						if (fso.FileExists(ImporterFolder+"\\"+SourceFileName+".H0"+i)){
+							fso.CopyFile(ImporterFolder+"\\"+SourceFileName+".H0"+i,SaveFolder+"\\");
+						}else{
+                            break;
+                        }
+                    }
 				}
 			}else{
 				alert("请确认程序保存路径是否正确！")
@@ -456,14 +470,28 @@ function createBakPrg(){
         }
         
         //输出prg程序
-        outputPrgFile(SourceFilePath+".prg",TargetFilePath+".prg",markers,isTopSide);
+        outputPrgFile(SourceFilePath+".PRG",TargetFilePath+".PRG",markers,isTopSide);
         
         //输出glv程序
-        outputGlvFile(SourceFilePath+".glv",TargetFilePath+".glv");
+        outputGlvFile(SourceFilePath+".GLV",TargetFilePath+".GLV");
         
         //输出hgd程序
-        outputHgdFile(SourceFilePath+".hgd",TargetFilePath+".hgd");
-        
+        outputHgdFile(SourceFilePath+".HGD",TargetFilePath+".HGD");
+
+        //复制分割的加工程序文件
+        for (var i=1;i<10;i++){
+            if (fso.FileExists(SourceFilePath+".G0"+i)){
+                fso.CopyFile(SourceFilePath+".G0"+i,TargetFilePath+".G0"+i);
+            }else{
+                break;
+            }
+            if (fso.FileExists(SourceFilePath+".H0"+i)){
+                fso.CopyFile(SourceFilePath+".H0"+i,TargetFilePath+".H0"+i);
+            }else{
+                break;
+            }
+        }
+
         alert("备用标靶镭射加工程序已保存至以下路径：\n"+TargetFilePath);
         createScheduleFile("BY-"+SourceFileName,$("#SourceCond").val());
     } catch(e){
