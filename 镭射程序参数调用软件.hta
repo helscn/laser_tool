@@ -21,10 +21,11 @@
 20250214：增加孔数超过100万孔但不超过1亿孔时，三菱机分割后的新文件识别处理（.G##、.H##文件，##最大到99）
 20250703：隐藏镭射程序、参数保存路径设置，通过按Alt点击导入路径的浏览按钮切换显示状态
           修改镭射程序的复制逻辑，当镭射程序保存路径设置隐藏时，不会自动复制镭射程序当指定文件夹，创建任务文件时程序路径也会改为程序导入文件夹
+20250704：生成任务文件时，如果镭射程序路径为网络路径，会自动尝试替换为本地网络映射路径
 */
 window.resizeTo(650,600);
 </script>
-<title>镭射程序参数调用软件 V20250703</title>
+<title>镭射程序参数调用软件 V20250704</title>
 <hta:Application
 ID="CreateBackupMarkerPrg"
 applicationname="CreateBackupMarkerPrg"
@@ -431,15 +432,18 @@ function copyNormalPrg(){
 	}
 
     //根据文件保存结果显示提示信息
+    var schedule_flag=createScheduleFile($("#SourcePrg").val(),$("#SourceCond").val());
     if (prg_flag){
-        alert("已创建镭射机加工任务文件。");
-    }else if(cond_flag){
-        alert("未找到镭射加工参数文件，已创建镭射机加工任务文件。");
+        if (schedule_flag){
+            alert("已创建镭射机任务文件。");
+        }else{
+            alert("未创建镭射机任务文件，请检查路径是否正确！");
+        }
     }else{
-        alert("未找到镭射程序和参数，请确认文件名和路径是否正确！");
-        return;
+        if (cond_flag){
+            alert("已下载镭射参数文件至目标路径。");
+        }
     }
-    createScheduleFile($("#SourcePrg").val(),$("#SourceCond").val());
 }
 
 function createBakPrg(){
@@ -648,18 +652,46 @@ function checkPrgFile(srcFilePath){
     return block_count;
 }
 
+function getNetworkMappings() {
+    //获取网络映射驱动器列表
+    var net = new ActiveXObject("WScript.Network");
+    var drives = net.EnumNetworkDrives();
+    var mappings = [];
+    
+    for (var i = 0; i < drives.length; i += 2) {
+        mappings.push({
+            drive: drives(i),
+            path: drives(i + 1)
+        });
+    }
+    
+    return mappings;
+}
+
 function createScheduleFile(SourcePrg, CondFile, Quantity,Comment){
     // 根据镭射程序文件和镭射参数创建任务文件
+    var CondSaveFolder=$("#CondSaveFolder").val();
+    var TargetFile="C:\\pban\\schedule\\"+SourcePrg+".sdl";
+    var quantity=Quantity || 72;
+    var comment=Comment || "";
+    var schedule=[SourcePrg,CondFile,1,quantity,0,0,"0:00:00",comment,0]
+    var mapping=getNetworkMappings();
     var PrgSaveFolder=$("#SaveFolder").val();
     if ($("#SaveFolder").is(":hidden")){
         PrgSaveFolder=$("#ImporterFolder").val();
     }
-    var CondSaveFolder=$("#CondSaveFolder").val();
-    var TargetFile="C:\\pban\\schedule\\default.sdl";
-    var quantity=Quantity || 72;
-    var comment=Comment || "";
-    var schedule=[SourcePrg,CondFile,1,quantity,0,0,"0:00:00",comment,0]
     
+    for (var i=0;i<mapping.length;i++){
+        if (PrgSaveFolder.substring(0,mapping[i].path.length).toLowerCase()==mapping[i].path.toLowerCase()){
+            PrgSaveFolder=mapping[i].drive + PrgSaveFolder.substring(mapping[i].path.length);
+        }
+    }
+    if (PrgSaveFolder.indexOf("\\\\")==0){
+        alert("网络路径中的镭射程序需要映射为本地路径才可以在镭射机中调用！");
+        return false;
+    }
+
+
     if (!fso.FolderExists("C:\\pban\\schedule")){return false;}
     oFS=fso.OpenTextFile(TargetFile,2,true);
     
